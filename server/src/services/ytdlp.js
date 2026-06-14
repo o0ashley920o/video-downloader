@@ -1,22 +1,87 @@
-import { exec } from 'child_process';
-import { promisify } from 'util';
+import { spawn } from 'child_process';
+import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
-const execPromise = promisify(exec);
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const DEFAULT_DOWNLOADS_DIR = path.join(__dirname, '../../downloads');
 
-const YTDLP_PATH = process.env.YTDLP_PATH || 'yt-dlp';
-const DOWNLOADS_DIR = process.env.DOWNLOADS_DIR || path.join(__dirname, '../../downloads');
+function resolveYtdlpCommand() {
+  const configured = (process.env.YTDLP_PATH || 'yt-dlp').trim();
+
+  if (fs.existsSync(configured)) {
+    const stat = fs.statSync(configured);
+    if (stat.isDirectory()) {
+      const exeName = process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp';
+      const exePath = path.join(configured, exeName);
+      if (fs.existsSync(exePath)) return exePath;
+    }
+    return configured;
+  }
+
+  return configured;
+}
+
+function buildCommandParts(args) {
+  const base = resolveYtdlpCommand();
+  if (base.includes(' ')) {
+    return [...base.split(' '), ...args];
+  }
+  return [base, ...args];
+}
+
+function runYtdlp(args, { onProgress } = {}) {
+  return new Promise((resolve, reject) => {
+    const parts = buildCommandParts(args);
+    const [command, ...spawnArgs] = parts;
+    const child = spawn(command, spawnArgs, {
+      windowsHide: true,
+    });
+
+    let stderr = '';
+
+    child.stdout?.on('data', (data) => {
+      parseProgress(data.toString(), onProgress);
+    });
+
+    child.stderr?.on('data', (data) => {
+      const chunk = data.toString();
+      stderr += chunk;
+      parseProgress(chunk, onProgress);
+    });
+
+    child.on('error', (error) => {
+      reject(new Error(error.message));
+    });
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ success: true });
+      } else {
+        reject(new Error(stderr.trim() || `yt-dlp exited with code ${code}`));
+      }
+    });
+  });
+}
+
+function parseProgress(text, onProgress) {
+  if (!onProgress) return;
+  const match = text.match(/(\d+\.?\d*)%/);
+  if (match) {
+    onProgress(parseFloat(match[1]));
+  }
+}
+
+function normalizeOutputPath(outputPath) {
+  return path.resolve(outputPath).replace(/\\/g, '/');
+}
 
 /**
  * Get video information from URL
  */
 export async function getVideoInfo(url) {
   try {
-    const command = `${YTDLP_PATH} --dump-json "${url}"`;
-    const { stdout } = await execPromise(command, { maxBuffer: 10 * 1024 * 1024 });
+    const { stdout } = await runYtdlpCapture(['--dump-json', url]);
     const info = JSON.parse(stdout);
 
     return {
@@ -31,6 +96,39 @@ export async function getVideoInfo(url) {
   } catch (error) {
     throw new Error(`Failed to fetch video info: ${error.message}`);
   }
+}
+
+function runYtdlpCapture(args) {
+  return new Promise((resolve, reject) => {
+    const parts = buildCommandParts(args);
+    const [command, ...spawnArgs] = parts;
+    const child = spawn(command, spawnArgs, {
+      windowsHide: true,
+    });
+
+    let stdout = '';
+    let stderr = '';
+
+    child.stdout?.on('data', (data) => {
+      stdout += data.toString();
+    });
+
+    child.stderr?.on('data', (data) => {
+      stderr += data.toString();
+    });
+
+    child.on('error', (error) => {
+      reject(new Error(error.message));
+    });
+
+    child.on('close', (code) => {
+      if (code === 0) {
+        resolve({ stdout, stderr });
+      } else {
+        reject(new Error(stderr.trim() || `yt-dlp exited with code ${code}`));
+      }
+    });
+  });
 }
 
 /**
@@ -54,10 +152,9 @@ function extractFormats(formats) {
     }
   });
 
-  // Add audio-only option
   const audioFormat = formats.find((f) => f.vcodec === 'none' && f.acodec !== 'none');
   if (audioFormat) {
-    uniqueFormats['audio'] = {
+    uniqueFormats.audio = {
       quality: 'audio',
       format: 'mp3',
       filesize: audioFormat.filesize || 0,
@@ -74,57 +171,36 @@ function extractFormats(formats) {
 /**
  * Download video with custom filename pattern
  */
-export async function downloadVideo(url, outputPath, format = 'best', filenamePattern = '%(title)s', onProgress = null) {
-  try {
-    return new Promise((resolve, reject) => {
-      let formatString = 'bestvideo+bestaudio/best';
+export async function downloadVideo(
+  url,
+  outputPath,
+  format = 'best',
+  filenamePattern = '%(title)s',
+  onProgress = null
+) {
+  let formatString = 'bestvideo+bestaudio/best';
 
-      if (format === 'mp3' || format === 'audio') {
-        formatString = 'bestaudio';
-      } else if (format.includes('p')) {
-        const quality = parseInt(format);
-        formatString = `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`;
-      }
-
-      // Use custom filename pattern with proper escaping
-      const outputTemplate = path.join(outputPath, `${filenamePattern}.%(ext)s`);
-      
-      let postprocessorArgs = [];
-      if (format === 'mp3' || format === 'audio') {
-        postprocessorArgs = ['-x', '--audio-format', 'mp3'];
-      }
-
-      const args = [
-        YTDLP_PATH,
-        '-f', formatString,
-        '-o', outputTemplate,
-        ...postprocessorArgs,
-        url,
-      ];
-
-      const command = args.join(' ');
-      const childProcess = exec(command, { maxBuffer: 10 * 1024 * 1024 }, (error) => {
-        if (error) {
-          reject(new Error(`Download failed: ${error.message}`));
-        } else {
-          resolve({ success: true });
-        }
-      });
-
-      // Track progress if callback provided
-      if (onProgress && childProcess.stdout) {
-        childProcess.stdout.on('data', (data) => {
-          const progressMatch = data.toString().match(/(\d+\.?\d*)%/);
-          if (progressMatch) {
-            const progress = parseFloat(progressMatch[1]);
-            onProgress(progress);
-          }
-        });
-      }
-    });
-  } catch (error) {
-    throw new Error(`Download error: ${error.message}`);
+  if (format === 'mp3' || format === 'audio') {
+    formatString = 'bestaudio';
+  } else if (format.includes('p')) {
+    const quality = parseInt(format);
+    formatString = `bestvideo[height<=${quality}]+bestaudio/best[height<=${quality}]`;
   }
+
+  const resolvedOutput = normalizeOutputPath(
+    process.env.DOWNLOADS_DIR || outputPath || DEFAULT_DOWNLOADS_DIR
+  );
+  const outputTemplate = `${resolvedOutput}/${filenamePattern}.%(ext)s`;
+
+  const args = ['-f', formatString, '-o', outputTemplate, '--newline', '--progress'];
+
+  if (format === 'mp3' || format === 'audio') {
+    args.push('-x', '--audio-format', 'mp3');
+  }
+
+  args.push(url);
+
+  return runYtdlp(args, { onProgress });
 }
 
 /**
@@ -132,9 +208,13 @@ export async function downloadVideo(url, outputPath, format = 'best', filenamePa
  */
 export async function checkYtdlpInstalled() {
   try {
-    await execPromise(`${YTDLP_PATH} --version`);
+    await runYtdlpCapture(['--version']);
     return true;
   } catch {
     return false;
   }
+}
+
+export function getResolvedYtdlpCommand() {
+  return resolveYtdlpCommand();
 }

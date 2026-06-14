@@ -20,6 +20,20 @@
   margin: 0;
 }
 
+.summary-text {
+  font-size: 13px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.search-input {
+  padding: 10px 16px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  min-width: 220px;
+}
+
 .filter-group {
   display: flex;
   gap: 10px;

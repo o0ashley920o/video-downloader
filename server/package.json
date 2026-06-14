@@ -1,0 +1,17 @@
+{
+  "name": "video-downloader-server",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.0",
+    "socket.io": "^4.7.5",
+    "sqlite3": "^5.1.7",
+    "uuid": "^10.0.0"
+  }
+}
