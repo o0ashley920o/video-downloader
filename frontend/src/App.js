@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import './App.css';
 import {
+  API_ROOT,
   DOWNLOAD_FORMATS,
   formatBytes,
   formatDuration,
@@ -9,6 +10,17 @@ import {
   queueSingleDownload,
   subscribeToJob,
 } from '@/lib/api';
+
+function triggerSaveDialog(jobId, filename) {
+  const a = document.createElement('a');
+  a.href = `${API_ROOT}/video/file/${jobId}`;
+  if (filename) {
+    a.download = filename;
+  }
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
 
 const DEFAULT_TEMPLATE = '%(title).80s';
 
@@ -53,7 +65,7 @@ function statusTone(status) {
   return 'chip chip-neutral';
 }
 
-function JobCard({ job }) {
+function JobCard({ job, onDownload }) {
   return (
     <article className="job-card">
       <div className="job-card-top">
@@ -103,6 +115,18 @@ function JobCard({ job }) {
       </div>
 
       {job.error ? <div className="job-error">{job.error}</div> : null}
+
+      {job.status === 'completed' && (
+        <div className="job-save-row">
+          <button
+            className="button"
+            type="button"
+            onClick={() => onDownload(job.id, job.filename)}
+          >
+            Save file
+          </button>
+        </div>
+      )}
     </article>
   );
 }
@@ -165,6 +189,10 @@ function App() {
       job.id,
       (update) => {
         mergeJob(update);
+
+        if (update.status === 'completed') {
+          triggerSaveDialog(job.id, update.filename);
+        }
 
         if (['completed', 'failed', 'cancelled'].includes(update.status)) {
           closeStream(job.id);
@@ -478,7 +506,7 @@ function App() {
           ) : (
             <div className="queue-list">
               {jobs.map((job) => (
-                <JobCard key={job.id} job={job} />
+                <JobCard key={job.id} job={job} onDownload={triggerSaveDialog} />
               ))}
             </div>
           )}
