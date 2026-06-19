@@ -201,12 +201,14 @@ def build_format_selector(format_choice: str) -> Dict[str, Any]:
             "postprocessors": [{"key": "FFmpegExtractAudio", "preferredcodec": "mp3", "preferredquality": "192"}],
             "merge_output_format": None,
         }
+    # Prefer progressive (video+audio in one stream) first for faster completion,
+    # then fall back to separate streams when needed.
     quality_map = {
-        "best": "bestvideo+bestaudio/best",
-        "1080p": "bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
-        "720p": "bestvideo[height<=720]+bestaudio/best[height<=720]/best",
-        "480p": "bestvideo[height<=480]+bestaudio/best[height<=480]/best",
-        "360p": "bestvideo[height<=360]+bestaudio/best[height<=360]/best",
+        "best": "best[vcodec!=none][acodec!=none]/bestvideo+bestaudio/best",
+        "1080p": "best[height<=1080][vcodec!=none][acodec!=none]/bestvideo[height<=1080]+bestaudio/best[height<=1080]/best",
+        "720p": "best[height<=720][vcodec!=none][acodec!=none]/bestvideo[height<=720]+bestaudio/best[height<=720]/best",
+        "480p": "best[height<=480][vcodec!=none][acodec!=none]/bestvideo[height<=480]+bestaudio/best[height<=480]/best",
+        "360p": "best[height<=360][vcodec!=none][acodec!=none]/bestvideo[height<=360]+bestaudio/best[height<=360]/best",
     }
     return {"format": quality_map.get(format_choice, quality_map["best"]), "merge_output_format": "mp4"}
 
@@ -266,6 +268,17 @@ def run_download_sync(job_id: str, url: str, format_choice: str, filename_templa
         "no_warnings": True,
         "restrictfilenames": True,
         "continuedl": True,
+        "concurrent_fragment_downloads": int(os.environ.get("YTDLP_CONCURRENT_FRAGMENTS", "8")),
+        "http_chunk_size": int(os.environ.get("YTDLP_HTTP_CHUNK_SIZE", "10485760")),
+        "socket_timeout": int(os.environ.get("YTDLP_SOCKET_TIMEOUT", "30")),
+        "retries": int(os.environ.get("YTDLP_RETRIES", "10")),
+        "fragment_retries": int(os.environ.get("YTDLP_FRAGMENT_RETRIES", "10")),
+        "extractor_retries": int(os.environ.get("YTDLP_EXTRACTOR_RETRIES", "3")),
+        "extractor_args": {
+            "generic": {
+                "impersonate": ["chrome"]
+            }
+        },
         **fmt_opts,
     }
 
