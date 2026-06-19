@@ -7,7 +7,9 @@ from typing import List, Optional, Dict, Any
 import os
 import logging
 import asyncio
+import re
 from pathlib import Path
+from urllib.parse import urlparse
 from pydantic import BaseModel, Field, ConfigDict
 import uuid
 from datetime import datetime, timezone
@@ -233,6 +235,8 @@ def run_download_sync(job_id: str, url: str, format_choice: str, filename_templa
     final_filename = {"value": None}
     job_dir = DOWNLOAD_DIR / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
+    parsed_url = urlparse(url)
+    referer = f"{parsed_url.scheme}://{parsed_url.netloc}/" if parsed_url.scheme and parsed_url.netloc else None
 
     def progress_hook(d):
         flag = CANCEL_FLAGS.get(job_id)
@@ -274,6 +278,14 @@ def run_download_sync(job_id: str, url: str, format_choice: str, filename_templa
         "retries": int(os.environ.get("YTDLP_RETRIES", "10")),
         "fragment_retries": int(os.environ.get("YTDLP_FRAGMENT_RETRIES", "10")),
         "extractor_retries": int(os.environ.get("YTDLP_EXTRACTOR_RETRIES", "3")),
+        "geo_bypass": True,
+        "http_headers": {
+            "User-Agent": os.environ.get(
+                "YTDLP_USER_AGENT",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+            ),
+            **({"Referer": referer} if referer else {}),
+        },
         "extractor_args": {
             "generic": {
                 "impersonate": ["chrome"]
@@ -281,6 +293,14 @@ def run_download_sync(job_id: str, url: str, format_choice: str, filename_templa
         },
         **fmt_opts,
     }
+
+    cookie_file = os.environ.get("YTDLP_COOKIEFILE")
+    if cookie_file:
+        ydl_opts["cookiefile"] = cookie_file
+
+    cookies_from_browser = os.environ.get("YTDLP_COOKIES_FROM_BROWSER")
+    if cookies_from_browser:
+        ydl_opts["cookiesfrombrowser"] = (cookies_from_browser,)
 
     try:
         asyncio.run_coroutine_threadsafe(update_job(job_id, {"status": "downloading"}), loop)
@@ -317,7 +337,17 @@ def run_download_sync(job_id: str, url: str, format_choice: str, filename_templa
         new_status = "paused" if flag == "paused" else ("cancelled" if flag == "cancelled" else "failed")
         updates = {"status": new_status, "speed": None, "eta": None}
         if new_status == "failed":
-            updates["error"] = str(e)[:500]
+            raw_error = str(e).strip() or repr(e).strip() or "Unknown download error"
+            clean_error = re.sub(r"\x1b\[[0-9;]*m", "", raw_error)
+
+            # Give actionable guidance for extractor failures seen on xhamster-like sites.
+            if "xhamster" in url.lower() and "No video formats found" in clean_error:
+                clean_error = (
+                    f"{clean_error}. This site often requires an authenticated browser session. "
+                    "Set YTDLP_COOKIES_FROM_BROWSER (e.g. chrome) or YTDLP_COOKIEFILE and retry."
+                )
+
+            updates["error"] = clean_error[:500]
         asyncio.run_coroutine_threadsafe(update_job(job_id, updates), loop)
 
 
