@@ -278,6 +278,11 @@
 	font-weight: 700;
 }
 
+.job-save-row {
+	display: flex;
+	justify-content: flex-end;
+}
+
 .job-error {
 	border: 2px solid var(--signal);
 	background: #fff1f2;
