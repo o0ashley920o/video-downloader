@@ -1,0 +1,69 @@
+{
+  "theme": "LIGHT",
+  "archetype": "4_SWISS_HIGH_CONTRAST",
+  "emotional_tone": "Precise, brutalist, command-center. It feels like an elite machine for extracting digital assets, rather than a generic SaaS or sketchy download site.",
+  "color_palette": {
+    "background": "#F2F2F2",
+    "surface": "#FFFFFF",
+    "foreground": "#0A0A0A",
+    "muted": "#E5E5E5",
+    "muted_foreground": "#737373",
+    "accent_primary": "#002FA7",
+    "accent_secondary": "#FF2A00",
+    "border": "#0A0A0A"
+  },
+  "typography": {
+    "font_families": {
+      "heading": "Cabinet Grotesk",
+      "body": "IBM Plex Mono"
+    },
+    "hierarchy": {
+      "h1": "text-5xl lg:text-6xl tracking-tighter font-black uppercase",
+      "h2": "text-3xl lg:text-4xl tracking-tight font-black uppercase",
+      "h3": "text-xl font-bold tracking-tight",
+      "body": "text-base leading-relaxed font-mono",
+      "small_labels": "text-xs tracking-[0.2em] uppercase font-mono font-bold"
+    }
+  },
+  "layout_and_spacing": {
+    "strategy": "Control Room Grid. High density, brutalist contrast, visible structure. Expose the skeleton of the layout.",
+    "containers": "Hard corners (rounded-none). 2px solid borders (#0A0A0A). Use stark drop shadows (e.g., shadow-[4px_4px_0px_#0A0A0A]). No soft shadows.",
+    "padding": "Generous inner padding for main layout cells (p-8, p-12) but dense data tables/history lists.",
+    "alignment": "Strict left-alignment. Everything must align to the grid mathematically."
+  },
+  "components": {
+    "buttons": "Square edges. Primary CTA: bg-[#002FA7] text-white hover:bg-[#001D6E]. Secondary/Cancel: bg-white text-[#0A0A0A] border-2 border-[#0A0A0A] hover:bg-[#0A0A0A] hover:text-white. Destructive: bg-[#FF2A00] text-white. Always define focus and hover states.",
+    "inputs": "bg-white border-2 border-[#0A0A0A] focus:ring-0 focus:border-[#002FA7] font-mono h-14 px-4 rounded-none. Placeholder text should be high-contrast muted.",
+    "cards": "bg-white border-2 border-[#0A0A0A] p-6 rounded-none shadow-[4px_4px_0px_#0A0A0A] transition-transform hover:-translate-y-1 hover:shadow-[6px_6px_0px_#0A0A0A].",
+    "progress_bar": "h-4 rounded-none bg-[#E5E5E5] overflow-hidden border-2 border-[#0A0A0A]. Fill is #002FA7 with stark transition.",
+    "toast": "Use Sonner. Override classes to match brutalist style: border-2 border-[#0A0A0A] rounded-none shadow-[4px_4px_0px_#0A0A0A] font-mono bg-white text-[#0A0A0A].",
+    "tabs": "Hard-edged. Active tab: border-b-4 border-[#002FA7] text-[#0A0A0A] font-bold. Inactive: border-b-2 border-[#E5E5E5] text-[#737373]."
+  },
+  "visual_enhancers": {
+    "borders": "Visible grid structure. Use border-r-2 border-b-2 border-[#0A0A0A] for lists and history items to feel like a terminal ledger.",
+    "hover_states": "High-contrast shifts. Interactive items must invert colors or heavily darken on hover.",
+    "icons": "Use @phosphor-icons/react with sharp/regular weight. No rounded soft icons."
+  },
+  "media": {
+    "strategy": "Minimalist and raw. Visuals should either be the media being downloaded or stark abstract technological grids.",
+    "images": {
+      "abstract_hero_texture": "https://images.unsplash.com/photo-1746470427686-4c3551f3d689?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NDk1Nzl8MHwxfHNlYXJjaHwyfHxhYnN0cmFjdCUyMGRpZ2l0YWwlMjBkYXRhJTIwZ3JpZHxlbnwwfHx8fDE3ODEzMjM2NjB8MA&ixlib=rb-4.1.0&q=85",
+      "mock_thumbnail_1": "https://images.unsplash.com/photo-1598512946582-8aa2bca6abc0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxjaW5lbWF0aWMlMjBsYW5kc2NhcGUlMjB2aWRlbyUyMHRodW1ibmFpbHxlbnwwfHx8fDE3ODEzMjM2NjB8MA&ixlib=rb-4.1.0&q=85",
+      "mock_thumbnail_2": "https://images.unsplash.com/photo-1466971060667-16467c7d04ee?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwzfHxjaW5lbWF0aWMlMjBsYW5kc2NhcGUlMjB2aWRlbyUyMHRodW1ibmFpbHxlbnwwfHx8fDE3ODEzMjM2NjB8MA&ixlib=rb-4.1.0&q=85",
+      "mock_thumbnail_3": "https://images.pexels.com/photos/5748338/pexels-photo-5748338.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940"
+    }
+  },
+  "testing": {
+    "attributes": "All interactive elements MUST use data-testid attributes formatted in kebab-case based on their role (e.g., data-testid='download-submit-button', data-testid='url-input-field', data-testid='format-select-dropdown', data-testid='bulk-textarea')."
+  },
+  "instructions_to_main_agent": [
+    "CRITICAL: The frontend uses JavaScript (.js/.jsx files). DO NOT use .tsx or TypeScript in your implementation.",
+    "Apply Archetype 4 (Swiss & High-Contrast). Override standard Shadcn variables to remove radiuses (set radius to 0 in tailwind base) and use stark #0A0A0A borders.",
+    "Include Cabinet Grotesk for headings and IBM Plex Mono for all body/interface text. Import these from Google Fonts/Fontshare.",
+    "Build the core required features: Single URL download input, Bulk download tab (textarea), Fetch Info button (revealing title/duration/thumbnail), Format selection (dropdown), Live progress bars, and a History queue.",
+    "The history queue should visually look like a dense data table or command-line log with thumbnails. Use the provided mock thumbnails in 'media.images' for initial mock data instead of placeholders.",
+    "For interactions, favor raw HTML+Tailwind for structural layout and Shadcn heavily customized (stripped of soft shadows, adding thick borders) for dropdowns and toasts.",
+    "Ensure the UI uses hard shadows (shadow-[4px_4px_0px_#0A0A0A]) on interactive cards and buttons to match the brutalist aesthetic.",
+    "Run 'yarn add @phosphor-icons/react sonner' for icons and toast notifications."
+  ]
+}
