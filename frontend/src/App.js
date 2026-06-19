@@ -139,6 +139,7 @@ function App() {
   const [bulkPending, setBulkPending] = useState(false);
   const [message, setMessage] = useState('Ready to queue downloads.');
   const streamRefs = useRef(new Map());
+  const triggeredDownloads = useRef(new Set());
 
   const jobCounts = useMemo(() => {
     return STATUS_ORDER.reduce(
@@ -190,7 +191,8 @@ function App() {
       (update) => {
         mergeJob(update);
 
-        if (update.status === 'completed') {
+        if (update.status === 'completed' && !triggeredDownloads.current.has(job.id)) {
+          triggeredDownloads.current.add(job.id);
           triggerSaveDialog(job.id, update.filename);
         }
 
